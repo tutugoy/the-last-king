@@ -25,8 +25,12 @@ export class Game extends Scene
     {
         console.log('Game scene started!');
         this.king = this.add.rectangle(200, 500, 40, 50, 0x4169e1)
-        const ground = this.add.rectangle(512,700,1024, 100, 0x387a36)
+        const ground = this.add.rectangle(1500,700,3000, 100, 0x387a36)
+        const platforms = this.physics.add.staticGroup()
         const platform1 = this.add.rectangle(400, 550, 200, 25, 0x8b5a2b)
+        const platform2 = this.add.rectangle(630, 400 , 200, 25, 0x8b5a2b)
+        platforms.add(platform1)
+        platforms.add(platform2)
         this.physics.add.existing(this.king)
         const body = this.king.body as Phaser.Physics.Arcade.Body;
 
@@ -35,15 +39,15 @@ export class Game extends Scene
 
         this.physics.add.existing(ground, true)
         this.physics.add.collider(this.king, ground)
-        this.physics.add.existing(platform1, true)
-        this.physics.add.collider(this.king, platform1)
+        this.physics.add.collider(this.king, platforms)
 
         this.keys = {
             left: this.input.keyboard!.addKey('A'),
             right: this.input.keyboard!.addKey('D'),
             jump: this.input.keyboard!.addKey('W')
         }
-
+        this.cameras.main.setBounds(0, 0, 3000, 800);
+        this.cameras.main.startFollow(this.king, true, 0.1, 0.1);
     }
     
     update ()
