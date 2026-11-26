@@ -9,12 +9,18 @@ export class Game extends Scene
         jump: Phaser.Input.Keyboard.Key
     }
 
+    private restart!: Phaser.Input.Keyboard.Key;
+
     private king!: Phaser.GameObjects.Rectangle;
     private kingHealth!: number;
     private kingMaxHealth!: number;
     private healthBarBackground!: Phaser.GameObjects.Rectangle;
     private healthBar!: Phaser.GameObjects.Rectangle;
     private lastHazardDamageTime: number = 0;
+    private gameOver: boolean = false;
+    private swordHilt!: Phaser.GameObjects.Arc;
+    private swordTip!: Phaser.GameObjects.Arc;
+    private swordLine!: Phaser.GameObjects.Line;
 
     constructor ()
     {
@@ -28,10 +34,18 @@ export class Game extends Scene
 
     create ()
     {
-        console.log('Game scene started!');
+        console.log('test');
         this.king = this.add.rectangle(200, 500, 40, 50, 0x4169e1)
         this.kingHealth = 100;
         this.kingMaxHealth = 100;
+        //sword line hilt and blade
+
+        this.swordLine = this.add.line(0, 0, 0, 0, 100, 0, 0xffffff);
+        this.swordLine.setOrigin(0, 0);
+
+        this.swordHilt = this.add.circle(225, 500, 6, 0xff0000);
+        this.swordTip = this.add.circle(325, 500, 6, 0xffff00);
+
         const ground = this.add.rectangle(1500,700,3000, 100, 0x387a36)
         const platforms = this.physics.add.staticGroup()
         const platform1 = this.add.rectangle(400, 550, 200, 25, 0x8b5a2b)
@@ -62,6 +76,9 @@ export class Game extends Scene
             right: this.input.keyboard!.addKey('D'),
             jump: this.input.keyboard!.addKey('W')
         }
+
+        this.restart = this.input.keyboard!.addKey('R');
+
         this.cameras.main.setBounds(0, 0, 3000, 800);
         this.cameras.main.startFollow(this.king, true, 0.1, 0.1);
 
@@ -76,6 +93,25 @@ export class Game extends Scene
     
     update ()
     {
+
+        if (this.gameOver) {
+            if (Input.Keyboard.JustDown(this.restart)) {
+                this.scene.restart();
+                return;
+            }
+        }
+
+        if (this.kingHealth <= 0 && !this.gameOver)
+        {
+            this.gameOver = true;
+            const body = this.king.body as Phaser.Physics.Arcade.Body;
+            body.setVelocity(0, 0);
+            body.setAcceleration(0, 0);
+            body.setEnable(false);
+
+            this.add.text(512, 350, 'Game Over', { fontSize: '64px', color: '#ff0000', fontStyle: 'bold' }).setOrigin(0.5).setScrollFactor(0);
+        }
+
         const body = this.king.body as Phaser.Physics.Arcade.Body;
 
         if (Input.Keyboard.JustDown(this.keys.jump) && body.blocked.down)
@@ -104,5 +140,22 @@ export class Game extends Scene
         else {
             body.setAccelerationX(0);
         }
+
+        const pointer = this.input.activePointer;
+
+        const hiltX = pointer.worldX;
+        const hiltY = pointer.worldY;
+
+        const tipX = hiltX + 100;
+        const tipY = hiltY;
+
+        this.swordHilt.setPosition(hiltX, hiltY);
+        this.swordTip.setPosition(tipX, tipY);
+
+    this.swordLine.setPosition(hiltX, hiltY);
+    this.swordLine.setTo(0, 0, tipX - hiltX, tipY - hiltY);
+
+
+
     }
 }

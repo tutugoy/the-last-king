@@ -14,8 +14,7 @@ const config: Types.Core.GameConfig = {
             gravity: {
                 y: 500,
                 x: 0
-            },
-            debug: true
+            }
         }
     },
     backgroundColor: '#028af8',
