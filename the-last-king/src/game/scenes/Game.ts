@@ -10,6 +10,11 @@ export class Game extends Scene
     }
 
     private king!: Phaser.GameObjects.Rectangle;
+    private kingHealth!: number;
+    private kingMaxHealth!: number;
+    private healthBarBackground!: Phaser.GameObjects.Rectangle;
+    private healthBar!: Phaser.GameObjects.Rectangle;
+    private lastHazardDamageTime: number = 0;
 
     constructor ()
     {
@@ -25,6 +30,8 @@ export class Game extends Scene
     {
         console.log('Game scene started!');
         this.king = this.add.rectangle(200, 500, 40, 50, 0x4169e1)
+        this.kingHealth = 100;
+        this.kingMaxHealth = 100;
         const ground = this.add.rectangle(1500,700,3000, 100, 0x387a36)
         const platforms = this.physics.add.staticGroup()
         const platform1 = this.add.rectangle(400, 550, 200, 25, 0x8b5a2b)
@@ -39,7 +46,16 @@ export class Game extends Scene
 
         this.physics.add.existing(ground, true)
         this.physics.add.collider(this.king, ground)
-        this.physics.add.collider(this.king, platforms)
+        this.physics.add.collider(this.king, platform1)
+
+        this.physics.add.collider(this.king, platform2, () => {
+            if (this.time.now - this.lastHazardDamageTime >= 1000) {
+                this.kingHealth -= 10;
+                this.kingHealth = Math.max(0, this.kingHealth);
+                this.healthBar.setSize((this.kingHealth / this.kingMaxHealth) * 200, 25);
+                this.lastHazardDamageTime = this.time.now;
+            }
+        });
 
         this.keys = {
             left: this.input.keyboard!.addKey('A'),
@@ -48,6 +64,14 @@ export class Game extends Scene
         }
         this.cameras.main.setBounds(0, 0, 3000, 800);
         this.cameras.main.startFollow(this.king, true, 0.1, 0.1);
+
+        this.healthBarBackground = this.add.rectangle(30,30,200,25,0x333333);
+        this.healthBarBackground.setOrigin(0,0);
+        this.healthBarBackground.setScrollFactor(0);
+
+        this.healthBar = this.add.rectangle(30,30,200,25, 0x00ff00);
+        this.healthBar.setOrigin(0,0);
+        this.healthBar.setScrollFactor(0);
     }
     
     update ()
