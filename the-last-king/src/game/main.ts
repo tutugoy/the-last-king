@@ -8,6 +8,16 @@ const config: Types.Core.GameConfig = {
     width: 1024,
     height: 768,
     parent: 'game-container',
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: {
+                y: 500,
+                x: 0
+            },
+            debug: true
+        }
+    },
     backgroundColor: '#028af8',
     scale: {
         mode: Scale.FIT,
@@ -15,7 +25,7 @@ const config: Types.Core.GameConfig = {
     },
     scene: [
         MainGame
-    ]
+    ],
 };
 
 const StartGame = (parent: string) => {
