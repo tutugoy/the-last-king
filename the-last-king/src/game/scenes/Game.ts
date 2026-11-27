@@ -21,11 +21,12 @@ export class Game extends Scene
     private swordHilt!: Phaser.GameObjects.Arc;
     private swordTip!: Phaser.GameObjects.Arc;
     private swordLine!: Phaser.GameObjects.Line;
-    private swordLength: number = 100;
+    private swordLength: number = 60;
+    private swordHiltMaxDistance: number = 50;
     private swordAngle: number = 0;
     private swordAngularVelocity: number = 0;
-    private previousMouseX: number = 0;
-    private previousMouseY: number = 0;
+
+    private secondaryMode: boolean = false;
 
     constructor ()
     {
@@ -109,9 +110,6 @@ export class Game extends Scene
         this.healthBar.setOrigin(0,0);
         this.healthBar.setScrollFactor(0);
 
-        this.previousMouseX = this.input.activePointer.x;
-        this.previousMouseY = this.input.activePointer.y;
-
     }
     
     update (_time: number, delta: number)
@@ -175,35 +173,55 @@ export class Game extends Scene
 
         
         const pointer = this.input.activePointer;
-
         const deltaSeconds = Math.max(Math.min(delta / 1000, 0.05), 1 / 1000);
-        const mouseDeltaX = pointer.x - this.previousMouseX;
-        const mouseDeltaY = pointer.y - this.previousMouseY;
-        const mouseSpeed = Math.hypot(mouseDeltaX, mouseDeltaY) / deltaSeconds;
+
+        const mouseOffsetX = pointer.worldX - this.king.x;
+        const mouseOffsetY = pointer.worldY - this.king.y;
+        const mouseDistance = Math.hypot(mouseOffsetX, mouseOffsetY);
+        const pointerAngle = Math.atan2(mouseOffsetY, mouseOffsetX);
 
         if (pointer.leftButtonDown()) {
-            this.swordHilt.setPosition(this.king.x + 30, this.king.y);
-            this.swordAngularVelocity = 0;
-
-            const aimX = pointer.worldX - this.swordHilt.x;
-            const aimY = pointer.worldY - this.swordHilt.y;
-
-            if (aimX !== 0 || aimY !== 0) {
-                this.swordAngle = Math.atan2(aimY, aimX);
+            if (!this.secondaryMode) {
+                this.secondaryMode = true;
+                this.swordAngularVelocity = 0;
             }
         } else {
-            this.swordHilt.setPosition(pointer.worldX, pointer.worldY);
+            this.secondaryMode = false;
 
-            if (mouseSpeed > 0) {
-                const targetAngle = Math.atan2(mouseDeltaY, mouseDeltaX);
-                const angleError = PhaserMath.Angle.Wrap(targetAngle - this.swordAngle);
-                const speedFactor = PhaserMath.Clamp(mouseSpeed / 500, 0, 1);
-                this.swordAngularVelocity += angleError * speedFactor * 24 * deltaSeconds;
+            const hiltDistance = Math.min(mouseDistance, this.swordHiltMaxDistance);
+
+            if (mouseDistance > 0) {
+                this.swordHilt.setPosition(
+                    this.king.x + (mouseOffsetX / mouseDistance) * hiltDistance,
+                    this.king.y + (mouseOffsetY / mouseDistance) * hiltDistance
+                );
+            } else {
+                this.swordHilt.setPosition(this.king.x, this.king.y);
             }
-
-            this.swordAngularVelocity *= Math.exp(-4 * deltaSeconds);
-            this.swordAngle = PhaserMath.Angle.Wrap(this.swordAngle + this.swordAngularVelocity * deltaSeconds);
         }
+
+        const aimX = pointer.worldX - this.swordHilt.x;
+        const aimY = pointer.worldY - this.swordHilt.y;
+        const hasAim = this.secondaryMode
+            ? aimX !== 0 || aimY !== 0
+            : mouseDistance > 0;
+
+        if (hasAim) {
+            const targetAngle = this.secondaryMode
+                ? Math.atan2(aimY, aimX)
+                : pointerAngle;
+            const angleError = PhaserMath.Angle.Wrap(targetAngle - this.swordAngle);
+
+            this.swordAngularVelocity += (
+                angleError * 100 - this.swordAngularVelocity * 20
+            ) * deltaSeconds;
+
+            this.swordAngle = PhaserMath.Angle.Wrap(
+                this.swordAngle + this.swordAngularVelocity * deltaSeconds
+            );
+        }
+
+        // sword blade redrawing:
 
         const tipX = this.swordHilt.x + Math.cos(this.swordAngle) * this.swordLength;
         const tipY = this.swordHilt.y + Math.sin(this.swordAngle) * this.swordLength;
@@ -215,10 +233,6 @@ export class Game extends Scene
             Math.cos(this.swordAngle) * this.swordLength,
             Math.sin(this.swordAngle) * this.swordLength
         );
-
-        // Save mouse position for the next frame
-        this.previousMouseX = pointer.x;
-        this.previousMouseY = pointer.y;
 
     }
 }
