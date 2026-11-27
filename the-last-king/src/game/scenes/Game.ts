@@ -27,6 +27,14 @@ export class Game extends Scene
     private swordAngularVelocity: number = 0;
 
     private secondaryMode: boolean = false;
+    private secondaryHiltOffsetX: number = 0;
+    private secondaryHiltOffsetY: number = 0;
+    private tertiaryMode: boolean = false;
+    private tertiaryHiltOffsetX: number = 0;
+    private tertiaryHiltOffsetY: number = 0;
+    private tertiaryPointerAngle: number = 0;
+    private tertiaryHandoffUntil: number = 0;
+    private lastSecondaryModeTime: number = Number.NEGATIVE_INFINITY;
 
     constructor ()
     {
@@ -40,6 +48,9 @@ export class Game extends Scene
 
     create ()
     {
+        this.secondaryMode = false;
+        this.tertiaryMode = false;
+        this.lastSecondaryModeTime = Number.NEGATIVE_INFINITY;
         console.log('test');
         this.king = this.add.rectangle(200, 500, 40, 50, 0x4169e1)
         this.kingHealth = 100;
@@ -110,9 +121,11 @@ export class Game extends Scene
         this.healthBar.setOrigin(0,0);
         this.healthBar.setScrollFactor(0);
 
+        this.input.mouse?.disableContextMenu();
+
     }
     
-    update (_time: number, delta: number)
+    update (time: number, delta: number)
     {
 
         if (this.gameOver) {
@@ -179,46 +192,98 @@ export class Game extends Scene
         const mouseOffsetY = pointer.worldY - this.king.y;
         const mouseDistance = Math.hypot(mouseOffsetX, mouseOffsetY);
         const pointerAngle = Math.atan2(mouseOffsetY, mouseOffsetX);
+        const leftButtonDown = pointer.leftButtonDown();
 
-        if (pointer.leftButtonDown()) {
-            if (!this.secondaryMode) {
-                this.secondaryMode = true;
+        if (pointer.rightButtonDown()) {
+            if (!this.tertiaryMode) {
+                this.tertiaryMode = true;
+                const transitioningFromSecondary = this.secondaryMode
+                    || time - this.lastSecondaryModeTime <= 200;
+                this.tertiaryHandoffUntil = transitioningFromSecondary ? time + 200 : time;
+                this.tertiaryHiltOffsetX = this.swordHilt.x - this.king.x;
+                this.tertiaryHiltOffsetY = this.swordHilt.y - this.king.y;
+                this.tertiaryPointerAngle = pointerAngle;
                 this.swordAngularVelocity = 0;
             }
-        } else {
+
             this.secondaryMode = false;
 
-            const hiltDistance = Math.min(mouseDistance, this.swordHiltMaxDistance);
+            if (time < this.tertiaryHandoffUntil) {
+                if (mouseDistance > 0) {
+                    this.tertiaryPointerAngle = pointerAngle;
+                }
+            } else if (mouseDistance > 0) {
+                const angleDelta = PhaserMath.Angle.Wrap(
+                    pointerAngle - this.tertiaryPointerAngle
+                );
+                const cos = Math.cos(angleDelta);
+                const sin = Math.sin(angleDelta);
+                const rotatedOffsetX = this.tertiaryHiltOffsetX * cos
+                    - this.tertiaryHiltOffsetY * sin;
+                const rotatedOffsetY = this.tertiaryHiltOffsetX * sin
+                    + this.tertiaryHiltOffsetY * cos;
 
-            if (mouseDistance > 0) {
+                this.tertiaryHiltOffsetX = rotatedOffsetX;
+                this.tertiaryHiltOffsetY = rotatedOffsetY;
+                this.tertiaryPointerAngle = pointerAngle;
+                this.swordAngle = PhaserMath.Angle.Wrap(this.swordAngle + angleDelta);
+            }
+
+            this.swordHilt.setPosition(
+                this.king.x + this.tertiaryHiltOffsetX,
+                this.king.y + this.tertiaryHiltOffsetY
+            );
+        } else {
+            this.tertiaryMode = false;
+
+            if (leftButtonDown) {
+                if (!this.secondaryMode) {
+                    this.secondaryMode = true;
+                    this.swordAngularVelocity = 0;
+                    this.secondaryHiltOffsetX = this.swordHilt.x - this.king.x;
+                    this.secondaryHiltOffsetY = this.swordHilt.y - this.king.y;
+                }
+
+                this.lastSecondaryModeTime = time;
                 this.swordHilt.setPosition(
-                    this.king.x + (mouseOffsetX / mouseDistance) * hiltDistance,
-                    this.king.y + (mouseOffsetY / mouseDistance) * hiltDistance
+                    this.king.x + this.secondaryHiltOffsetX,
+                    this.king.y + this.secondaryHiltOffsetY
                 );
             } else {
-                this.swordHilt.setPosition(this.king.x, this.king.y);
+                this.secondaryMode = false;
+
+                const hiltDistance = Math.min(mouseDistance, this.swordHiltMaxDistance);
+
+                if (mouseDistance > 0) {
+                    this.swordHilt.setPosition(
+                        this.king.x + (mouseOffsetX / mouseDistance) * hiltDistance,
+                        this.king.y + (mouseOffsetY / mouseDistance) * hiltDistance
+                    );
+                } else {
+                    this.swordHilt.setPosition(this.king.x, this.king.y);
+                }
             }
-        }
 
-        const aimX = pointer.worldX - this.swordHilt.x;
-        const aimY = pointer.worldY - this.swordHilt.y;
-        const hasAim = this.secondaryMode
-            ? aimX !== 0 || aimY !== 0
-            : mouseDistance > 0;
+            const aimX = pointer.worldX - this.swordHilt.x;
+            const aimY = pointer.worldY - this.swordHilt.y;
+            const hasAim = this.secondaryMode
+                ? aimX !== 0 || aimY !== 0
+                : mouseDistance > 0;
 
-        if (hasAim) {
-            const targetAngle = this.secondaryMode
-                ? Math.atan2(aimY, aimX)
-                : pointerAngle;
-            const angleError = PhaserMath.Angle.Wrap(targetAngle - this.swordAngle);
+            if (hasAim) {
+                const targetAngle = this.secondaryMode
+                    ? Math.atan2(aimY, aimX)
+                    : pointerAngle;
+                const angleError = PhaserMath.Angle.Wrap(targetAngle - this.swordAngle);
 
-            this.swordAngularVelocity += (
-                angleError * 100 - this.swordAngularVelocity * 20
-            ) * deltaSeconds;
+                this.swordAngularVelocity += (
+                    angleError * 100 - this.swordAngularVelocity * 20
+                ) * deltaSeconds;
 
-            this.swordAngle = PhaserMath.Angle.Wrap(
-                this.swordAngle + this.swordAngularVelocity * deltaSeconds
-            );
+                this.swordAngle = PhaserMath.Angle.Wrap(
+                    this.swordAngle + this.swordAngularVelocity * deltaSeconds
+                );
+            }
         }
 
         // sword blade redrawing:
