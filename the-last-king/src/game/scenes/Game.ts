@@ -18,10 +18,7 @@ export class Game extends Scene
     private healthBar!: Phaser.GameObjects.Rectangle;
     private lastHazardDamageTime: number = 0;
     private gameOver: boolean = false;
-    private swordHilt!: Phaser.GameObjects.Arc;
-    private swordTip!: Phaser.GameObjects.Arc;
-    private swordLine!: Phaser.GameObjects.Line;
-    private swordLength: number = 60;
+    private sword!: Phaser.GameObjects.Image;
     private swordHiltMaxDistance: number = 50;
     private swordAngle: number = 0;
     private swordAngularVelocity: number = 0;
@@ -43,7 +40,7 @@ export class Game extends Scene
 
     preload ()
     {
-        
+        this.load.image('sword', '/assets/characters/king/sword.png');
     }
 
     create ()
@@ -55,23 +52,10 @@ export class Game extends Scene
         this.king = this.add.rectangle(200, 500, 40, 50, 0x4169e1)
         this.kingHealth = 100;
         this.kingMaxHealth = 100;
-        //sword line hilt and blade
-
-
-        this.swordHilt = this.add.circle(this.king.x + 30, this.king.y, 6, 0xff0000);
-        this.swordTip = this.add.circle(this.king.x + 130, this.king.y, 6, 0xffff00);
-
+        // The sprite's bottom center is its hilt.
+        this.sword = this.add.image(this.king.x + 30, this.king.y, 'sword');
+        this.sword.setOrigin(0.5, 1);
         this.swordAngle = 0;
-        this.swordLine = this.add.line(
-            this.swordHilt.x,
-            this.swordHilt.y,
-            0, 0,
-            this.swordTip.x - this.swordHilt.x,
-            this.swordTip.y - this.swordHilt.y,
-            0xffffff
-        )
-
-        this.swordLine.setOrigin(0, 0);
 
         const ground = this.add.rectangle(1500,700,3000, 100, 0x387a36)
         const platforms = this.physics.add.staticGroup()
@@ -200,8 +184,8 @@ export class Game extends Scene
                 const transitioningFromSecondary = this.secondaryMode
                     || time - this.lastSecondaryModeTime <= 200;
                 this.tertiaryHandoffUntil = transitioningFromSecondary ? time + 200 : time;
-                this.tertiaryHiltOffsetX = this.swordHilt.x - this.king.x;
-                this.tertiaryHiltOffsetY = this.swordHilt.y - this.king.y;
+                this.tertiaryHiltOffsetX = this.sword.x - this.king.x;
+                this.tertiaryHiltOffsetY = this.sword.y - this.king.y;
                 this.tertiaryPointerAngle = pointerAngle;
                 this.swordAngularVelocity = 0;
             }
@@ -229,7 +213,7 @@ export class Game extends Scene
                 this.swordAngle = PhaserMath.Angle.Wrap(this.swordAngle + angleDelta);
             }
 
-            this.swordHilt.setPosition(
+            this.sword.setPosition(
                 this.king.x + this.tertiaryHiltOffsetX,
                 this.king.y + this.tertiaryHiltOffsetY
             );
@@ -240,12 +224,12 @@ export class Game extends Scene
                 if (!this.secondaryMode) {
                     this.secondaryMode = true;
                     this.swordAngularVelocity = 0;
-                    this.secondaryHiltOffsetX = this.swordHilt.x - this.king.x;
-                    this.secondaryHiltOffsetY = this.swordHilt.y - this.king.y;
+                    this.secondaryHiltOffsetX = this.sword.x - this.king.x;
+                    this.secondaryHiltOffsetY = this.sword.y - this.king.y;
                 }
 
                 this.lastSecondaryModeTime = time;
-                this.swordHilt.setPosition(
+                this.sword.setPosition(
                     this.king.x + this.secondaryHiltOffsetX,
                     this.king.y + this.secondaryHiltOffsetY
                 );
@@ -255,17 +239,17 @@ export class Game extends Scene
                 const hiltDistance = Math.min(mouseDistance, this.swordHiltMaxDistance);
 
                 if (mouseDistance > 0) {
-                    this.swordHilt.setPosition(
+                    this.sword.setPosition(
                         this.king.x + (mouseOffsetX / mouseDistance) * hiltDistance,
                         this.king.y + (mouseOffsetY / mouseDistance) * hiltDistance
                     );
                 } else {
-                    this.swordHilt.setPosition(this.king.x, this.king.y);
+                    this.sword.setPosition(this.king.x, this.king.y);
                 }
             }
 
-            const aimX = pointer.worldX - this.swordHilt.x;
-            const aimY = pointer.worldY - this.swordHilt.y;
+            const aimX = pointer.worldX - this.sword.x;
+            const aimY = pointer.worldY - this.sword.y;
             const hasAim = this.secondaryMode
                 ? aimX !== 0 || aimY !== 0
                 : mouseDistance > 0;
@@ -286,18 +270,7 @@ export class Game extends Scene
             }
         }
 
-        // sword blade redrawing:
-
-        const tipX = this.swordHilt.x + Math.cos(this.swordAngle) * this.swordLength;
-        const tipY = this.swordHilt.y + Math.sin(this.swordAngle) * this.swordLength;
-
-        this.swordTip.setPosition(tipX, tipY);
-        this.swordLine.setPosition(this.swordHilt.x, this.swordHilt.y);
-        this.swordLine.setTo(
-            0, 0,
-            Math.cos(this.swordAngle) * this.swordLength,
-            Math.sin(this.swordAngle) * this.swordLength
-        );
+        this.sword.setRotation(this.swordAngle + Math.PI / 2);
 
     }
 }
