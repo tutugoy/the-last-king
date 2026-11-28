@@ -261,7 +261,7 @@ export class Game extends Scene
                 const angleError = PhaserMath.Angle.Wrap(targetAngle - this.swordAngle);
 
                 this.swordAngularVelocity += (
-                    angleError * 100 - this.swordAngularVelocity * 20
+                    angleError * 175 - this.swordAngularVelocity * 20
                 ) * deltaSeconds;
 
                 this.swordAngle = PhaserMath.Angle.Wrap(
